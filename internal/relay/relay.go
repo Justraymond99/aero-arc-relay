@@ -90,11 +90,6 @@ func (r *Relay) SetRedisClient(client *redisconn.Client) {
 	r.redisClient = client
 }
 
-// RedisClient returns the currently configured Redis client (may be nil).
-func (r *Relay) RedisClient() *redisconn.Client {
-	return r.redisClient
-}
-
 // Start begins the relay operation
 func (r *Relay) Start(ctx context.Context) error {
 	slog.Info("Starting aero-arc-relay...")
