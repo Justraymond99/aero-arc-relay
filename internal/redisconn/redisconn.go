@@ -39,9 +39,6 @@ func (c *Client) Ping(ctx context.Context) error {
 	return c.rdb.Ping(ctx).Err()
 }
 
-// global holds the process-wide Redis client instance, if configured.
-var global *Client
-
 // InitFromEnv initialises a Redis client from environment variables.
 //
 // Environment variables:
@@ -89,14 +86,7 @@ func InitFromEnv(ctx context.Context) *Client {
 	}
 
 	client := &Client{rdb: rdb}
-	global = client
 	return client
-}
-
-// Get returns the process-wide Redis client, if initialised.
-// It may be nil when Redis is disabled or misconfigured.
-func Get() *Client {
-	return global
 }
 
 type droneRoutingValue struct {
