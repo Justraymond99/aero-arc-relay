@@ -2,6 +2,7 @@ package redisconn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 )
+
+var ErrDisabled = errors.New("redis disabled (REDIS_ADDR not set)")
 
 // Client wraps a go-redis client and can be shared across components.
 type Client struct {
@@ -31,7 +34,7 @@ func (c *Client) Ping(ctx context.Context) error {
 	return c.rdb.Ping(ctx).Err()
 }
 
-// InitFromEnv initialises a Redis client from environment variables.
+// NewClientFromEnv creates a Redis client from environment variables.
 //
 // Environment variables:
 //   - REDIS_ADDR      (required to enable Redis, e.g. "localhost:6379")
@@ -39,15 +42,13 @@ func (c *Client) Ping(ctx context.Context) error {
 //   - REDIS_DB        (optional, integer DB index; defaults to 0)
 //
 // Behaviour:
-//   - If REDIS_ADDR is not set, Redis is treated as disabled and nil is returned.
-//   - If connection or ping fails, a warning is logged but the relay continues
-//     running; the client is still returned so components can implement their
-//     own retry/backoff logic.
-func InitFromEnv(ctx context.Context) *Client {
+//   - If REDIS_ADDR is not set, Redis is treated as disabled and ErrDisabled is returned.
+//   - If ping fails, the client is returned alongside an error; callers may continue
+//     running and implement retry/backoff logic as needed.
+func NewClientFromEnv(ctx context.Context) (*Client, error) {
 	addr := os.Getenv("REDIS_ADDR")
 	if addr == "" {
-		slog.LogAttrs(ctx, slog.LevelInfo, "Redis disabled (REDIS_ADDR not set)")
-		return nil
+		return nil, ErrDisabled
 	}
 
 	password := os.Getenv("REDIS_PASSWORD")
@@ -71,14 +72,13 @@ func InitFromEnv(ctx context.Context) *Client {
 
 	// Perform a short ping on startup to surface connectivity issues without
 	// crashing the relay.
-	pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if err := rdb.Ping(pingCtx).Err(); err != nil {
-		slog.LogAttrs(ctx, slog.LevelWarn, "Redis ping failed; continuing without aborting relay", slog.String("error", err.Error()))
-	}
-
 	client := &Client{rdb: rdb}
-	return client
+	if err := rdb.Ping(pingCtx).Err(); err != nil {
+		return client, fmt.Errorf("redis ping failed: %w", err)
+	}
+	return client, nil
 }
 
 // parseDB converts a REDIS_DB string into an integer index.
