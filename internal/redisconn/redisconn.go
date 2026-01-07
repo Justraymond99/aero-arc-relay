@@ -31,9 +31,6 @@ func (c *Client) Ping(ctx context.Context) error {
 	return c.rdb.Ping(ctx).Err()
 }
 
-// global holds the process-wide Redis client instance, if configured.
-var global *Client
-
 // InitFromEnv initialises a Redis client from environment variables.
 //
 // Environment variables:
@@ -81,28 +78,7 @@ func InitFromEnv(ctx context.Context) *Client {
 	}
 
 	client := &Client{rdb: rdb}
-	global = client
 	return client
-}
-
-// Get returns the process-wide Redis client, if initialised.
-// It may be nil when Redis is disabled or misconfigured.
-func Get() *Client {
-	return global
-}
-
-// parseDB converts a REDIS_DB string into an integer index.
-func parseDB(value string) (int, error) {
-	// Small, local parse to avoid pulling in strconv here unnecessarily.
-	var n int
-	for i := 0; i < len(value); i++ {
-		ch := value[i]
-		if ch < '0' || ch > '9' {
-			return 0, fmt.Errorf("non-digit character %q in DB index", ch)
-		}
-		n = n*10 + int(ch-'0')
-	}
-	return n, nil
 }
 
 // parseDB converts a REDIS_DB string into an integer index.
