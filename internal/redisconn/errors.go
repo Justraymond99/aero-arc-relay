@@ -12,4 +12,7 @@ var (
 
 	// ErrRedisPingFailed indicates the initial connectivity check to Redis failed.
 	ErrRedisPingFailed = errors.New("redis ping failed")
+
+	// ErrRedisClientUninitialized indicates the Client has no underlying redis.Client.
+	ErrRedisClientUninitialized = errors.New("redis client is uninitialized")
 )

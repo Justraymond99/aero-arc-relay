@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
@@ -25,16 +26,16 @@ type Client struct {
 
 // Close closes the underlying Redis client.
 func (c *Client) Close() error {
-	if c == nil || c.rdb == nil {
-		return nil
+	if c.rdb == nil {
+		return ErrRedisClientUninitialized
 	}
 	return c.rdb.Close()
 }
 
 // Ping checks connectivity to Redis.
 func (c *Client) Ping(ctx context.Context) error {
-	if c == nil || c.rdb == nil {
-		return nil
+	if c.rdb == nil {
+		return ErrRedisClientUninitialized
 	}
 	return c.rdb.Ping(ctx).Err()
 }
@@ -60,6 +61,7 @@ func NewClientFromEnv(ctx context.Context) (*Client, error) {
 	if dbStr := os.Getenv("REDIS_DB"); dbStr != "" {
 		parsed, err := strconv.Atoi(dbStr)
 		if err != nil || parsed < 0 {
+			slog.LogAttrs(ctx, slog.LevelWarn, "Invalid REDIS_DB", slog.String("value", dbStr))
 			return nil, fmt.Errorf("%w: %q", ErrRedisDBInvalid, dbStr)
 		}
 		db = parsed
