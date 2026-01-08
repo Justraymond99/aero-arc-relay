@@ -2,16 +2,13 @@ package redisconn
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log/slog"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
-
-var ErrDisabled = errors.New("redis disabled (REDIS_ADDR not set)")
 
 // Client wraps a go-redis client and can be shared across components.
 type Client struct {
@@ -42,24 +39,22 @@ func (c *Client) Ping(ctx context.Context) error {
 //   - REDIS_DB        (optional, integer DB index; defaults to 0)
 //
 // Behaviour:
-//   - If REDIS_ADDR is not set, Redis is treated as disabled and ErrDisabled is returned.
-//   - If ping fails, the client is returned alongside an error; callers may continue
-//     running and implement retry/backoff logic as needed.
+//   - If REDIS_ADDR is not set, ErrRedisAddrNotSet is returned.
+//   - If ping fails, the client is returned alongside an error.
 func NewClientFromEnv(ctx context.Context) (*Client, error) {
 	addr := os.Getenv("REDIS_ADDR")
 	if addr == "" {
-		return nil, ErrDisabled
+		return nil, ErrRedisAddrNotSet
 	}
 
 	password := os.Getenv("REDIS_PASSWORD")
 	db := 0
 	if dbStr := os.Getenv("REDIS_DB"); dbStr != "" {
-		// Ignore parse errors and keep db=0; this avoids crashing on bad input.
-		if parsed, err := parseDB(dbStr); err == nil {
-			db = parsed
-		} else {
-			slog.LogAttrs(ctx, slog.LevelWarn, "Invalid REDIS_DB value, defaulting to 0", slog.String("error", err.Error()))
+		parsed, err := strconv.Atoi(dbStr)
+		if err != nil || parsed < 0 {
+			return nil, fmt.Errorf("%w: %q", ErrRedisDBInvalid, dbStr)
 		}
+		db = parsed
 	}
 
 	opts := &redis.Options{
@@ -74,23 +69,10 @@ func NewClientFromEnv(ctx context.Context) (*Client, error) {
 	// crashing the relay.
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+
 	client := &Client{rdb: rdb}
 	if err := rdb.Ping(pingCtx).Err(); err != nil {
-		return client, fmt.Errorf("redis ping failed: %w", err)
+		return client, fmt.Errorf("%w: %v", ErrRedisPingFailed, err)
 	}
 	return client, nil
-}
-
-// parseDB converts a REDIS_DB string into an integer index.
-func parseDB(value string) (int, error) {
-	// Small, local parse to avoid pulling in strconv here unnecessarily.
-	var n int
-	for i := 0; i < len(value); i++ {
-		ch := value[i]
-		if ch < '0' || ch > '9' {
-			return 0, fmt.Errorf("non-digit character %q in DB index", ch)
-		}
-		n = n*10 + int(ch-'0')
-	}
-	return n, nil
 }

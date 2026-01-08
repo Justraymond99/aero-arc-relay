@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -84,15 +85,22 @@ func New(cfg *config.Config) (*Relay, error) {
 	return relay, nil
 }
 
-// SetRedisClient wires an optional Redis client into the relay.
-// It is safe to pass nil (Redis disabled).
-func (r *Relay) SetRedisClient(client *redisconn.Client) {
-	r.redisClient = client
+func (r *Relay) initOptionalRedis(ctx context.Context) {
+	client, err := redisconn.NewClientFromEnv(ctx)
+	if err != nil && !errors.Is(err, redisconn.ErrRedisAddrNotSet) {
+		slog.LogAttrs(ctx, slog.LevelWarn, "Redis init failed; continuing without aborting relay", slog.String("error", err.Error()))
+	}
+	if client != nil {
+		r.redisClient = client
+		slog.LogAttrs(ctx, slog.LevelInfo, "Redis client initialised", slog.String("addr", os.Getenv("REDIS_ADDR")))
+	}
 }
 
 // Start begins the relay operation
 func (r *Relay) Start(ctx context.Context) error {
 	slog.Info("Starting aero-arc-relay...")
+
+	r.initOptionalRedis(ctx)
 
 	// Initialize MAVLink node with all endpoints if in 1:1 mode
 	if r.config.Relay.Mode == config.MAVLinkMode1To1 {
@@ -194,6 +202,11 @@ func (r *Relay) Start(ctx context.Context) error {
 					"Error closing sink", slog.String("error", err.Error()))
 			}
 			cancel() // Release resources
+		}
+
+		// Close Redis client (best-effort).
+		if r.redisClient != nil {
+			_ = r.redisClient.Close()
 		}
 
 		// Shutdown HTTP server

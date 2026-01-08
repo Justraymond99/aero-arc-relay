@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -11,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/makinje/aero-arc-relay/internal/config"
-	"github.com/makinje/aero-arc-relay/internal/redisconn"
 	"github.com/makinje/aero-arc-relay/internal/relay"
 )
 
@@ -47,18 +45,6 @@ func main() {
 		fmt.Println("\nShutting down...")
 		cancel()
 	}()
-
-	// Initialise Redis connectivity (optional, controlled via environment).
-	// Failures are logged but do not abort relay startup.
-	redisClient, redisErr := redisconn.NewClientFromEnv(ctx)
-	if redisErr != nil && !errors.Is(redisErr, redisconn.ErrDisabled) {
-		slog.LogAttrs(ctx, slog.LevelWarn, "Redis init failed; continuing without aborting relay", slog.String("error", redisErr.Error()))
-		// If we got a non-nil client despite the error (e.g. ping failure), keep it wired.
-	}
-	if redisClient != nil {
-		slog.LogAttrs(ctx, slog.LevelInfo, "Redis client initialised", slog.String("addr", os.Getenv("REDIS_ADDR")))
-	}
-	relayInstance.SetRedisClient(redisClient)
 
 	// Start the relay
 	if err := relayInstance.Start(ctx); err != nil {
