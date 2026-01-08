@@ -88,13 +88,13 @@ func New(cfg *config.Config) (*Relay, error) {
 func (r *Relay) initOptionalRedis(ctx context.Context) {
 	client, err := redisconn.NewClientFromEnv(ctx)
 	if err != nil {
-		// Any error means initialization failed; the relay continues without Redis.
-		// The relay is responsible for interpreting "disabled" vs "misconfigured".
+		level := slog.LevelWarn
+		msg := "Redis init failed; continuing without aborting relay"
 		if errors.Is(err, redisconn.ErrRedisAddrNotSet) {
-			slog.LogAttrs(ctx, slog.LevelInfo, "Redis disabled (REDIS_ADDR not set)")
-		} else {
-			slog.LogAttrs(ctx, slog.LevelWarn, "Redis init failed; continuing without aborting relay", slog.String("error", err.Error()))
+			level = slog.LevelInfo
+			msg = "Redis disabled (REDIS_ADDR not set)"
 		}
+		slog.LogAttrs(ctx, level, msg, slog.String("error", err.Error()))
 		return
 	}
 
