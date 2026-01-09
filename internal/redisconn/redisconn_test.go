@@ -23,10 +23,7 @@ func TestNewClientFromEnv_ErrRedisAddrNotSet(t *testing.T) {
 }
 
 func TestNewClientFromEnv_ErrRedisDBInvalid(t *testing.T) {
-<<<<<<< HEAD
 	// addr doesn't need to be reachable for this test; DB parse should fail first.
-=======
->>>>>>> e3ba6cf (relay/redisconn: address review notes)
 	t.Setenv("REDIS_ADDR", "127.0.0.1:6379")
 	t.Setenv("REDIS_PASSWORD", "")
 	t.Setenv("REDIS_DB", "not-an-int")
@@ -63,10 +60,6 @@ func TestNewClientFromEnv_PingFailureReturnsClientAndErrRedisPingFailed(t *testi
 	if !errors.Is(err, ErrRedisPingFailed) {
 		t.Fatalf("expected ErrRedisPingFailed, got %v", err)
 	}
-<<<<<<< HEAD
-	if closeErr := client.Close(); closeErr != nil {
-		t.Fatalf("expected nil close error, got %v", closeErr)
-=======
 }
 
 func TestClient_PingAndClose_Uninitialized(t *testing.T) {
@@ -77,6 +70,5 @@ func TestClient_PingAndClose_Uninitialized(t *testing.T) {
 	}
 	if err := c.Close(); !errors.Is(err, ErrRedisClientUninitialized) {
 		t.Fatalf("expected ErrRedisClientUninitialized, got %v", err)
->>>>>>> e3ba6cf (relay/redisconn: address review notes)
 	}
 }

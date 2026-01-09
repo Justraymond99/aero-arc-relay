@@ -88,15 +88,6 @@ func New(cfg *config.Config) (*Relay, error) {
 func (r *Relay) initRedis(ctx context.Context) {
 	client, err := redisconn.NewClientFromEnv(ctx)
 	if err != nil {
-<<<<<<< HEAD
-		level := slog.LevelWarn
-		msg := "Redis init failed; continuing without aborting relay"
-		if errors.Is(err, redisconn.ErrRedisAddrNotSet) {
-			level = slog.LevelInfo
-			msg = "Redis disabled (REDIS_ADDR not set)"
-		}
-		slog.LogAttrs(ctx, level, msg, slog.String("error", err.Error()))
-=======
 		// Keep the client on ping failure so it can recover when Redis comes back.
 		if errors.Is(err, redisconn.ErrRedisPingFailed) && client != nil {
 			r.redisClient = client
@@ -104,15 +95,11 @@ func (r *Relay) initRedis(ctx context.Context) {
 		}
 
 		slog.LogAttrs(ctx, slog.LevelWarn, err.Error())
->>>>>>> e3ba6cf (relay/redisconn: address review notes)
 		return
 	}
 
 	r.redisClient = client
-<<<<<<< HEAD
-=======
 	r.redisRoutingStore = client
->>>>>>> e3ba6cf (relay/redisconn: address review notes)
 	slog.LogAttrs(ctx, slog.LevelInfo, "Redis client initialised", slog.String("addr", os.Getenv("REDIS_ADDR")))
 }
 
