@@ -91,7 +91,6 @@ func (r *Relay) initRedis(ctx context.Context) {
 		// Keep the client on ping failure so it can recover when Redis comes back.
 		if errors.Is(err, redisconn.ErrRedisPingFailed) && client != nil {
 			r.redisClient = client
-			r.redisRoutingStore = client
 		}
 
 		slog.LogAttrs(ctx, slog.LevelWarn, err.Error())
@@ -99,7 +98,6 @@ func (r *Relay) initRedis(ctx context.Context) {
 	}
 
 	r.redisClient = client
-	r.redisRoutingStore = client
 	slog.LogAttrs(ctx, slog.LevelInfo, "Redis client initialised", slog.String("addr", os.Getenv("REDIS_ADDR")))
 }
 
